@@ -6,8 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Camera, CheckCircle, Leaf, Sun, Upload, AlertTriangle, TrendingUp, Loader2 } from "lucide-react"
-import { aiService } from "@/lib/ai-service"
-import { supabase } from "@/lib/supabase-client"
 import { useAuth } from "@/components/auth-provider"
 
 export default function GrowthTracker() {
@@ -16,6 +14,7 @@ export default function GrowthTracker() {
   const [tasks, setTasks] = useState([])
   const [growthInsights, setGrowthInsights] = useState(null)
   const [isLoadingInsights, setIsLoadingInsights] = useState(false)
+  const [image, setImage] = useState(null)
   const { user } = useAuth()
 
   useEffect(() => {
@@ -132,6 +131,45 @@ export default function GrowthTracker() {
 
   const currentCrop = crops.find((c) => c.id === selectedCrop)
   const progress = currentCrop ? (currentCrop.current_day / currentCrop.total_days) * 100 : 0
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setImage(file)
+    }
+  }
+
+  const handleAnalyze = async () => {
+    if (!user || !selectedCrop || !image) return
+    setIsLoadingInsights(true)
+    try {
+      const imageBase64 = await toBase64(image)
+      const res = await fetch("/api/crop/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          land_id: selectedCrop, // or crop_id if needed
+          image_base64: imageBase64.split(",")[1],
+        }),
+      })
+      const data = await res.json()
+      setGrowthInsights(data.ai_analysis)
+    } catch (error) {
+      setGrowthInsights(null)
+    } finally {
+      setIsLoadingInsights(false)
+    }
+  }
+
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = (error) => reject(error)
+    })
+  }
 
   return (
     <div className="space-y-6">

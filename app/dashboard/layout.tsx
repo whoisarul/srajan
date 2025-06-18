@@ -29,6 +29,7 @@ import {
   LogOut,
   Leaf,
 } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 
 export default function DashboardLayout({
   children,
@@ -36,11 +37,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const [user] = useState({
-    name: "John Doe",
-    email: "john@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-  })
+  const { user } = useAuth()
 
   const menuItems = [
     {
@@ -90,10 +87,10 @@ export default function DashboardLayout({
       <div className="flex h-screen">
         <Sidebar>
           <SidebarHeader className="border-b">
-            <div className="flex items-center p-2">
+            <Link href="/" className="flex items-center p-2">
               <Leaf className="h-6 w-6 text-green-600 mr-2" />
               <span className="text-xl font-bold">Srajan</span>
-            </div>
+            </Link>
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
@@ -112,12 +109,12 @@ export default function DashboardLayout({
           <SidebarFooter className="border-t">
             <div className="flex items-center p-4">
               <Avatar className="h-9 w-9 mr-2">
-                <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                <AvatarImage src={user?.user_metadata?.avatar_url || "/placeholder.svg"} alt={user?.user_metadata?.first_name || user?.email || "User"} />
+                <AvatarFallback>{user?.user_metadata?.first_name?.charAt(0) || user?.email?.charAt(0) || "U"}</AvatarFallback>
               </Avatar>
               <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-medium leading-none truncate">{user.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                <p className="text-sm font-medium leading-none truncate">{user?.user_metadata?.first_name} {user?.user_metadata?.last_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
               <Button variant="ghost" size="icon" className="ml-2">
                 <LogOut className="h-4 w-4" />

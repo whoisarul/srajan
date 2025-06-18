@@ -7,8 +7,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { ArrowRight, Calendar, Clock, Coins, Droplet, Sun, ThermometerSun, Loader2 } from "lucide-react"
-import { aiService } from "@/lib/ai-service"
-import { supabase } from "@/lib/supabase-client"
 import { useAuth } from "@/components/auth-provider"
 
 export default function CropPlanner() {
@@ -25,14 +23,9 @@ export default function CropPlanner() {
   useEffect(() => {
     if (user) {
       fetchUserLands()
-    }
-  }, [user])
-
-  useEffect(() => {
-    if (selectedLand && landDetails) {
       fetchCropRecommendations()
     }
-  }, [selectedLand, landDetails])
+  }, [user])
 
   const fetchUserLands = async () => {
     try {
@@ -53,44 +46,13 @@ export default function CropPlanner() {
   }
 
   const fetchCropRecommendations = async () => {
-    if (!landDetails) return
-
     setIsLoadingRecommendations(true)
     try {
-      const recommendations = await aiService.getCropRecommendations(
-        landDetails.soil_type || "Loamy Clay",
-        landDetails.location,
-        "Summer", // Current season
-        landDetails.size_acres,
-      )
-      setCropRecommendations(recommendations)
+      const res = await fetch(`/api/crops/recommend?user_id=${user.id}`)
+      const data = await res.json()
+      setCropRecommendations(data.recommended_crops || [])
     } catch (error) {
-      console.error("Error fetching recommendations:", error)
-      // Fallback recommendations
-      setCropRecommendations([
-        {
-          name: "Tomatoes",
-          variety: "Hybrid Variety",
-          growthPeriod: 60,
-          waterNeeds: "Medium",
-          expectedYield: "25 kg per plant",
-          expectedProfit: 45000,
-          difficulty: "Medium",
-          marketDemand: 4.5,
-          seasonality: "Summer",
-        },
-        {
-          name: "Okra",
-          variety: "Lady Finger",
-          growthPeriod: 55,
-          waterNeeds: "Medium-Low",
-          expectedYield: "15 kg per plant",
-          expectedProfit: 18000,
-          difficulty: "Easy",
-          marketDemand: 4.2,
-          seasonality: "Summer",
-        },
-      ])
+      setCropRecommendations([])
     } finally {
       setIsLoadingRecommendations(false)
     }

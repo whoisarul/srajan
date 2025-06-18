@@ -12,8 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ArrowRight, Upload, Loader2, CheckCircle } from "lucide-react"
-import { aiService } from "@/lib/ai-service"
-import { supabase } from "@/lib/supabase-client"
 import { useAuth } from "@/components/auth-provider"
 
 export default function LandAnalysis() {
@@ -25,89 +23,62 @@ export default function LandAnalysis() {
     location: "",
     gps: "",
     description: "",
+    image: null,
   })
+  const [imagePreview, setImagePreview] = useState(null)
   const router = useRouter()
   const { user } = useAuth()
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e) => {
     setFormData({
       ...formData,
       [e.target.id]: e.target.value,
     })
   }
 
-  const handleAnalyze = async (e: React.FormEvent) => {
+  const handleImageChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setFormData({ ...formData, image: file })
+      setImagePreview(URL.createObjectURL(file))
+    }
+  }
+
+  const handleAnalyze = async (e) => {
     e.preventDefault()
     if (!user) return
-
     setIsAnalyzing(true)
-
     try {
-      // Use AI service to analyze land
-      const analysis = await aiService.analyzeLand(formData.description, formData.location)
-
-      // Save land to database
-      const { data: landData, error: landError } = await supabase
-        .from("lands")
-        .insert({
+      let imageBase64 = null
+      if (formData.image) {
+        imageBase64 = await toBase64(formData.image)
+      }
+      const res = await fetch("/api/land/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           user_id: user.id,
-          name: formData.landName,
-          size_acres: Number.parseFloat(formData.landSize),
+          image_base64: imageBase64 ? imageBase64.split(",")[1] : null,
+          size: formData.landSize,
           location: formData.location,
-          gps_coordinates: formData.gps,
-          description: formData.description,
-          soil_type: analysis.soilType,
-          ph_level: analysis.phLevel,
-          moisture_level: analysis.moisture,
-          fertility_level: analysis.fertility,
-          status: "planning",
-        })
-        .select()
-        .single()
-
-      if (landError) {
-        console.error("Error saving land:", landError)
-      }
-
-      // Save analysis to database
-      if (landData) {
-        const { error: analysisError } = await supabase.from("land_analyses").insert({
-          user_id: user.id,
-          land_id: landData.id,
-          soil_type: analysis.soilType,
-          ph_level: analysis.phLevel,
-          moisture_level: analysis.moisture,
-          fertility_level: analysis.fertility,
-          recommendations: analysis.recommendations,
-          suggested_crops: analysis.suggestedCrops,
-          analysis_confidence: analysis.confidence,
-        })
-
-        if (analysisError) {
-          console.error("Error saving analysis:", analysisError)
-        }
-      }
-
-      setAnalysisResult(analysis)
-    } catch (error) {
-      console.error("Analysis error:", error)
-      // Fallback analysis
-      setAnalysisResult({
-        soilType: "Loamy Clay",
-        phLevel: 6.8,
-        moisture: "Medium",
-        fertility: "Good",
-        recommendations: [
-          "Add organic compost to improve nitrogen content",
-          "Consider drip irrigation for water efficiency",
-          "Plant nitrogen-fixing crops like legumes",
-        ],
-        suggestedCrops: ["Tomatoes", "Wheat", "Onions", "Spinach"],
-        confidence: 85,
+        }),
       })
+      const data = await res.json()
+      setAnalysisResult(data.soil_analysis)
+    } catch (error) {
+      setAnalysisResult(null)
     } finally {
       setIsAnalyzing(false)
     }
+  }
+
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = (error) => reject(error)
+    })
   }
 
   const handlePlanCrops = () => {
@@ -200,6 +171,12 @@ export default function LandAnalysis() {
                       <Upload className="h-10 w-10 text-muted-foreground mb-2" />
                       <p className="text-sm font-medium mb-1">Upload Soil Surface Photo</p>
                       <p className="text-xs text-muted-foreground mb-4">Take a clear photo of the soil surface</p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
                       <Button variant="outline" size="sm" type="button">
                         Choose File
                       </Button>
@@ -210,6 +187,12 @@ export default function LandAnalysis() {
                       <p className="text-xs text-muted-foreground mb-4">
                         Dig 6 inches and take a photo of the soil profile
                       </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
                       <Button variant="outline" size="sm" type="button">
                         Choose File
                       </Button>
