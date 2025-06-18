@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Bug, Leaf, Search, Sprout } from "lucide-react"
 import { useState, useEffect } from "react"
-
+"use client"
 export default function OrganicSolutions() {
   const [solutions, setSolutions] = useState([])
   const [loading, setLoading] = useState(true)
