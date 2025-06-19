@@ -23,7 +23,7 @@ app.post('/api/land/analyze', async (req, res) => {
 
     // Call Gemini API for soil analysis
     const geminiRes = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
       {
         contents: [
           {
