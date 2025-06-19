@@ -17,44 +17,28 @@ interface UserProfile {
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [dashboardData, setDashboardData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return
-
-      try {
-        // Use .maybeSingle() instead of .single() to handle the case where no profile exists
-        const { data, error } = await supabase
-          .from("users")
-          .select("first_name, last_name, location")
-          .eq("id", user.id)
-          .maybeSingle()
-
-        if (error) {
-          console.error("Error fetching profile:", error)
-        } else if (data) {
-          setProfile(data)
-        } else {
-          // Handle case where profile doesn't exist yet
-          console.log("No profile found, using metadata from auth")
-          // Use metadata from auth as fallback
-          setProfile({
-            first_name: user.user_metadata?.first_name || "",
-            last_name: user.user_metadata?.last_name || "",
-            location: user.user_metadata?.location || "",
-          })
-        }
-      } catch (err) {
-        console.error("Unexpected error:", err)
-      } finally {
-        setLoading(false)
-      }
+    if (user) {
+      fetchDashboardData()
     }
-
-    fetchProfile()
   }, [user])
+
+  const fetchDashboardData = async () => {
+    setLoading(true)
+    try {
+      if (!user) return;
+      const res = await fetch(`/api/dashboard?user_id=${user.id}`)
+      const data = await res.json()
+      setDashboardData(data)
+    } catch (err) {
+      setDashboardData(null)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -74,8 +58,23 @@ export default function Dashboard() {
     )
   }
 
+  if (!user || !dashboardData) {
+    return <div>No dashboard data available.</div>
+  }
+
+  // Extract stats from dashboardData
+  const lands = (dashboardData.lands || []) as any[]
+  const tracking = (dashboardData.tracking || []) as any[]
+  const recommendations = (dashboardData.recommendations || []) as any[]
+
+  // Calculate stats
+  const totalLand = lands.reduce((sum: number, land: any) => sum + (parseFloat(land.size) || 0), 0)
+  const activeCrops = tracking.length
+  const daysToHarvest = tracking.length > 0 ? Math.min(...tracking.map((t: any) => t.days_to_harvest || 0)) : 0
+  const estEarnings = tracking.reduce((sum: number, t: any) => sum + (t.estimated_earnings || 0), 0)
+
   // Fallback to user email if no name is available
-  const userName = profile?.first_name || user?.user_metadata?.first_name || user?.email?.split("@")[0] || "Farmer"
+  const userName = user?.user_metadata?.first_name || user?.email?.split("@")[0] || "Farmer"
 
   return (
     <div className="space-y-6">
@@ -101,8 +100,8 @@ export default function Dashboard() {
             <Map className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2.5 Acres</div>
-            <p className="text-xs text-muted-foreground">3 different plots</p>
+            <div className="text-2xl font-bold">{totalLand} Acres</div>
+            <p className="text-xs text-muted-foreground">{lands.length} different plots</p>
           </CardContent>
         </Card>
         <Card>
@@ -111,8 +110,8 @@ export default function Dashboard() {
             <Sprout className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">4</div>
-            <p className="text-xs text-muted-foreground">Tomatoes, Wheat, Spinach, Onions</p>
+            <div className="text-2xl font-bold">{activeCrops}</div>
+            <p className="text-xs text-muted-foreground">{tracking.map((t: any) => t.crop_name).join(", ")}</p>
           </CardContent>
         </Card>
         <Card>
@@ -121,8 +120,8 @@ export default function Dashboard() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">18 Days</div>
-            <p className="text-xs text-muted-foreground">Tomatoes ready first</p>
+            <div className="text-2xl font-bold">{daysToHarvest} Days</div>
+            <p className="text-xs text-muted-foreground">{tracking.length > 0 ? `${tracking[0].crop_name} ready first` : "No crops"}</p>
           </CardContent>
         </Card>
         <Card>
@@ -142,13 +141,13 @@ export default function Dashboard() {
             </svg>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹42,500</div>
-            <p className="text-xs text-muted-foreground">+12% from last season</p>
+            <div className="text-2xl font-bold">₹{estEarnings}</div>
+            <p className="text-xs text-muted-foreground">Based on current crops</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content: Crop Progress and Tasks */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
@@ -156,146 +155,71 @@ export default function Dashboard() {
             <CardDescription>Track the growth stages of your active crops</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="tomatoes" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="tomatoes">Tomatoes</TabsTrigger>
-                <TabsTrigger value="wheat">Wheat</TabsTrigger>
-                <TabsTrigger value="spinach">Spinach</TabsTrigger>
-                <TabsTrigger value="onions">Onions</TabsTrigger>
-              </TabsList>
-              <TabsContent value="tomatoes" className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">Growth Stage: Fruiting</p>
-                    <p className="text-sm text-muted-foreground">Day 42 of 60</p>
-                  </div>
-                  <div className="text-sm text-muted-foreground">70% Complete</div>
-                </div>
-                <Progress value={70} className="h-2" />
-
-                <div className="mt-6 space-y-4">
-                  <h4 className="text-sm font-medium">Today's Tasks</h4>
-                  <div className="grid gap-3">
-                    <div className="flex items-center gap-3 rounded-md border p-3">
-                      <Droplet className="h-5 w-5 text-blue-500" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">Water plants</p>
-                        <p className="text-xs text-muted-foreground">Morning, 2L per plant</p>
+            {tracking.length === 0 ? (
+              <div>No active crops found.</div>
+            ) : (
+              <Tabs defaultValue={tracking[0].crop_name} className="space-y-4">
+                <TabsList>
+                  {tracking.map((t: any) => (
+                    <TabsTrigger key={t.crop_name} value={t.crop_name}>{t.crop_name}</TabsTrigger>
+                  ))}
+                </TabsList>
+                {tracking.map((t: any) => (
+                  <TabsContent key={t.crop_name} value={t.crop_name} className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium leading-none">Growth Stage: {t.growth_stage || "Unknown"}</p>
+                        <p className="text-sm text-muted-foreground">Day {t.current_day || 0} of {t.total_days || 0}</p>
                       </div>
-                      <Button variant="outline" size="sm">
-                        Mark Done
-                      </Button>
+                      <div className="text-sm text-muted-foreground">{t.total_days ? `${Math.round((t.current_day / t.total_days) * 100)}% Complete` : ""}</div>
                     </div>
-                    <div className="flex items-center gap-3 rounded-md border p-3">
-                      <Leaf className="h-5 w-5 text-green-500" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">Apply organic fertilizer</p>
-                        <p className="text-xs text-muted-foreground">Compost tea, 500ml per plant</p>
+                    <Progress value={t.total_days ? (t.current_day / t.total_days) * 100 : 0} className="h-2" />
+                    {/* Today's Tasks (if available) */}
+                    <div className="mt-6 space-y-4">
+                      <h4 className="text-sm font-medium">Today's Tasks</h4>
+                      <div className="grid gap-3">
+                        {t.tasks && t.tasks.length > 0 ? (
+                          t.tasks.map((task: any, idx: number) => (
+                            <div key={idx} className="flex items-center gap-3 rounded-md border p-3">
+                              <Droplet className="h-5 w-5 text-blue-500" />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">{task.name}</p>
+                                <p className="text-xs text-muted-foreground">{task.details}</p>
+                              </div>
+                              <Button variant="outline" size="sm">
+                                Mark Done
+                              </Button>
+                            </div>
+                          ))
+                        ) : (
+                          <div>No tasks for today.</div>
+                        )}
                       </div>
-                      <Button variant="outline" size="sm">
-                        Mark Done
-                      </Button>
                     </div>
-                  </div>
-                </div>
-              </TabsContent>
-              <TabsContent value="wheat" className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">Growth Stage: Tillering</p>
-                    <p className="text-sm text-muted-foreground">Day 35 of 120</p>
-                  </div>
-                  <div className="text-sm text-muted-foreground">29% Complete</div>
-                </div>
-                <Progress value={29} className="h-2" />
-
-                <div className="mt-6 space-y-4">
-                  <h4 className="text-sm font-medium">Today's Tasks</h4>
-                  <div className="grid gap-3">
-                    <div className="flex items-center gap-3 rounded-md border p-3">
-                      <Sun className="h-5 w-5 text-yellow-500" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">Check for pests</p>
-                        <p className="text-xs text-muted-foreground">Look for aphids and rust</p>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        Mark Done
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-              {/* Other tabs would have similar content */}
-            </Tabs>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            )}
           </CardContent>
         </Card>
+        {/* Recommendations */}
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Recommended Actions</CardTitle>
+            <CardTitle>Crop Recommendations</CardTitle>
             <CardDescription>AI-powered suggestions for your farm</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-md bg-green-50 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <Leaf className="h-5 w-5 text-green-600" />
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-green-800">Soil Improvement</h3>
-                  <div className="mt-2 text-sm text-green-700">
-                    <p>
-                      Your tomato plot soil analysis shows low nitrogen. Add compost or organic nitrogen fertilizer
-                      within 3 days.
-                    </p>
-                  </div>
-                  <div className="mt-3">
-                    <Button size="sm" variant="outline" className="text-green-700 border-green-700 hover:bg-green-50">
-                      View Solutions <ArrowRight className="ml-1 h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-md bg-blue-50 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <Droplet className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-blue-800">Irrigation Alert</h3>
-                  <div className="mt-2 text-sm text-blue-700">
-                    <p>
-                      Weather forecast shows no rain for the next 5 days. Increase watering frequency for wheat plot.
-                    </p>
-                  </div>
-                  <div className="mt-3">
-                    <Button size="sm" variant="outline" className="text-blue-700 border-blue-700 hover:bg-blue-50">
-                      Update Schedule <ArrowRight className="ml-1 h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-md bg-amber-50 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <Calendar className="h-5 w-5 text-amber-600" />
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-amber-800">Planting Opportunity</h3>
-                  <div className="mt-2 text-sm text-amber-700">
-                    <p>Ideal time to plant garlic in your unused north plot. Expected profit: ₹15,000 per acre.</p>
-                  </div>
-                  <div className="mt-3">
-                    <Button size="sm" variant="outline" className="text-amber-700 border-amber-700 hover:bg-amber-50">
-                      Plan Crop <ArrowRight className="ml-1 h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <CardContent>
+            {recommendations.length === 0 ? (
+              <div>No recommendations available.</div>
+            ) : (
+              <ul className="list-disc pl-5 space-y-2">
+                {recommendations.map((rec: any, idx: number) => (
+                  <li key={idx}>
+                    <span className="font-medium">{rec.name}:</span> {rec.reason}
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -3,8 +3,34 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, Leaf, Map, Sprout, LineChart } from "lucide-react"
 import { Navbar } from "@/components/navbar"
 import { Plant3D } from "@/components/plant-3d"
+import { useEffect, useState } from "react"
 
 export default function Home() {
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch("/api/dashboard?user_id=public") // Replace with /api/stats if you add a stats endpoint
+        const data = await res.json()
+        // Example: calculate stats from lands, tracking, etc.
+        setStats({
+          farmers: data.lands ? data.lands.length : 0,
+          acres: data.lands ? data.lands.reduce((sum: number, land: any) => sum + (parseFloat(land.size) || 0), 0) : 0,
+          income: data.tracking ? data.tracking.reduce((sum: number, t: any) => sum + (t.estimated_earnings || 0), 0) : 0,
+          success: 95 // Placeholder, replace with real calculation if available
+        })
+      } catch (err) {
+        setStats(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchStats()
+  }, [])
+
   return (
     <div className="flex flex-col min-h-screen">
       
@@ -106,24 +132,30 @@ export default function Home() {
             <p className="mt-4 text-lg text-gray-600">Real results from our growing community</p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-green-600 mb-2">5,000+</div>
-              <p className="text-gray-600">Active Farmers</p>
+          {loading ? (
+            <div className="text-center">Loading stats...</div>
+          ) : !stats ? (
+            <div className="text-center text-red-500">Stats unavailable</div>
+          ) : (
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-green-600 mb-2">{stats.farmers}</div>
+                <p className="text-gray-600">Active Farmers</p>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-blue-600 mb-2">{stats.acres}</div>
+                <p className="text-gray-600">Acres Transformed</p>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-purple-600 mb-2">₹{stats.income}</div>
+                <p className="text-gray-600">Farmer Income Generated</p>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-amber-600 mb-2">{stats.success}%</div>
+                <p className="text-gray-600">Success Rate</p>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600 mb-2">12,000</div>
-              <p className="text-gray-600">Acres Transformed</p>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-purple-600 mb-2">₹2.5Cr</div>
-              <p className="text-gray-600">Farmer Income Generated</p>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-amber-600 mb-2">95%</div>
-              <p className="text-gray-600">Success Rate</p>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
