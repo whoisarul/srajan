@@ -1,8 +1,4 @@
 "use client"
-<<<<<<< HEAD
-
-=======
->>>>>>> e48740014176642e8d514f1c891d2e9d5de7e522
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Leaf, Map, Sprout, LineChart } from "lucide-react"
