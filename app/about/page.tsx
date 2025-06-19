@@ -1,8 +1,5 @@
 "use client"
-<<<<<<< HEAD
-
-=======
->>>>>>> e48740014176642e8d514f1c891d2e9d5de7e522
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Leaf, Users, Target, Award, ArrowRight } from "lucide-react"
