@@ -3,7 +3,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Leaf, Users, Target, Award, ArrowRight } from "lucide-react"
-import Link from "next/link"
+
 import { useEffect, useState } from "react"
 
 export default function AboutPage() {
